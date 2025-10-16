@@ -1,94 +1,311 @@
-# Helm Chart for LiteLLM
+# LiteLLM Vertex AI Gateway with Guardrails and Cost Monitoring
 
-## Prerequisites
+This Helm chart deploys a comprehensive LiteLLM gateway for Google Cloud Vertex AI with advanced guardrails, cost monitoring, and usage analytics.
 
-- Kubernetes 1.21+
-- Helm 3.8.0+
+## Features
 
-If `db.deployStandalone` is used:
-- PV provisioner support in the underlying infrastructure
+### 🛡️ **Guardrails & Safety**
+- **Content Filtering**: Block PII, toxic content, hate speech, violence, and sexual content
+- **Input Validation**: Token limits, request size limits, content type validation
+- **Output Validation**: Token limits, secret scanning in responses
+- **Request Monitoring**: Suspicious request logging and anomaly detection
 
-If `db.useStackgresOperator` is used (not yet implemented):
-- The Stackgres Operator must already be installed in the Kubernetes Cluster.  This chart will **not** install the operator if it is missing.
+### 💰 **Cost Monitoring & Budget Controls**
+- **Multi-tier Budgets**: Daily, weekly, and monthly budget limits
+- **Real-time Cost Tracking**: Per-model, per-user cost tracking
+- **Budget Alerts**: Warning (75%), Critical (90%), Emergency (95%) thresholds
+- **Cost Analytics**: Detailed cost breakdowns and usage patterns
 
-## Parameters
+### 📊 **Analytics & Monitoring**
+- **Usage Metrics**: Request counts, token usage, latency tracking
+- **Prometheus Integration**: Custom metrics for monitoring
+- **Comprehensive Logging**: Configurable logging levels and destinations
+- **Health Checks**: Liveness and readiness probes
 
-### LiteLLM Proxy Deployment Settings
+### 🚀 **Enhanced Rate Limiting**
+- **Multi-dimensional Limits**: QPM, QPH, QPD, concurrent requests
+- **Per-user Limits**: Individual user rate limiting
+- **Model-specific Limits**: Different limits per AI model
+- **Memory-based Storage**: No Redis dependency
 
-| Name                                                       | Description                                                                                                                                                                           | Value |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `replicaCount`                                             | The number of LiteLLM Proxy pods to be deployed                                                                                                                                       | `1`  |
-| `masterkey`                                                | The Master API Key for LiteLLM.  If not specified, a random key is generated.                                                                                                         | N/A  |
-| `environmentSecrets`                                       | An optional array of Secret object names.  The keys and values in these secrets will be presented to the LiteLLM proxy pod as environment variables.  See below for an example Secret object.  | `[]`  |
-| `image.repository`                                         | LiteLLM Proxy image repository                                                                                                                                                        | `ghcr.io/berriai/litellm`  |
-| `image.pullPolicy`                                         | LiteLLM Proxy image pull policy                                                                                                                                                       | `IfNotPresent`  |
-| `image.tag`                                                | Overrides the image tag whose default the latest version of LiteLLM at the time this chart was published.                                                                             | `""`  |
-| `image.dbReadyImage`                                       | On Pod startup, an initContainer is used to make sure the Postgres database is available before attempting to start LiteLLM.  This field specifies the image to use as that initContainer.  | `docker.io/bitnami/postgresql`  |
-| `image.dbReadyTag`                                         | Tag for the above image.  If not specified, "latest" is used.                                                                                                                         | `""`  |
-| `imagePullSecrets`                                         | Registry credentials for the LiteLLM and initContainer images.                                                                                                                        | `[]`  |
-| `serviceAccount.create`                                    | Whether or not to create a Kubernetes Service Account for this deployment.  The default is `false` because LiteLLM has no need to access the Kubernetes API.                          | `false`  |
-| `service.type`                                             | Kubernetes Service type (e.g. `LoadBalancer`, `ClusterIP`, etc.)                                                                                                                      | `ClusterIP`  |
-| `service.port`                                             | TCP port that the Kubernetes Service will listen on.  Also the TCP port within the Pod that the proxy will listen on.                                                                 | `4000`  |
-| `ingress.*`                                                | See [values.yaml](./values.yaml) for example settings                                                                                                                                 | N/A  |
-| `proxy_config.*`                                           | See [values.yaml](./values.yaml) for default settings.  See [example_config_yaml](../../../litellm/proxy/example_config_yaml/) for configuration examples.                            | N/A  |
+## Quick Start
 
-#### Example `environmentSecrets` Secret 
+### Prerequisites
+- Kubernetes cluster with Helm 3.x
+- Google Cloud Project with Vertex AI API enabled
+- Service Account with Vertex AI permissions
 
+### Installation
+
+1. **Configure your values:**
+```bash
+# Copy and edit the values file
+cp values.yaml my-values.yaml
+# Edit my-values.yaml with your configuration
 ```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: litellm-envsecrets
-data:
-  AZURE_OPENAI_API_KEY: TXlTZWN1cmVLM3k=
-type: Opaque
+
+2. **Install the chart:**
+```bash
+helm install litellm-gateway . -f my-values.yaml
 ```
 
-### Database Settings
-| Name                                                       | Description                                                                                                                                                                           | Value |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `db.useExisting`                                           | Use an existing Postgres database.  A Kubernetes Secret object must exist that contains credentials for connecting to the database.  An example secret object definition is provided below.  | `false`  |
-| `db.endpoint`                                              | If `db.useExisting` is `true`, this is the IP, Hostname or Service Name of the Postgres server to connect to.                                                                         | `localhost`  |
-| `db.database`                                              | If `db.useExisting` is `true`, the name of the existing database to connect to.                                                                                                       | `litellm`  |
-| `db.secret.name`                                           | If `db.useExisting` is `true`, the name of the Kubernetes Secret that contains credentials.                                                                                           | `postgres`  |
-| `db.secret.usernameKey`                                    | If `db.useExisting` is `true`, the name of the key within the Kubernetes Secret that holds the username for authenticating with the Postgres instance.                                | `username`  |
-| `db.secret.passwordKey`                                    | If `db.useExisting` is `true`, the name of the key within the Kubernetes Secret that holds the password associates with the above user.                                               | `password`  |
-| `db.useStackgresOperator`                                  | Not yet implemented.                                                                                                                                                                  | `false`  |
-| `db.deployStandalone`                                      | Deploy a standalone, single instance deployment of Postgres, using the Bitnami postgresql chart.  This is useful for getting started but doesn't provide HA or (by default) data backups.  | `true`  |
-| `postgresql.*`                                             | If `db.deployStandalone` is `true`, configuration passed to the Bitnami postgresql chart.   See the [Bitnami Documentation](https://github.com/bitnami/charts/tree/main/bitnami/postgresql) for full configuration details.  See [values.yaml](./values.yaml) for the default configuration.  | See [values.yaml](./values.yaml) |
-| `postgresql.auth.*`                                        | If `db.deployStandalone` is `true`, care should be taken to ensure the default `password` and `postgres-password` values are **NOT** used.                                            | `NoTaGrEaTpAsSwOrD`  |
+## Configuration
 
-#### Example Postgres `db.useExisting` Secret
+### Basic Configuration
+
 ```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres
-data:
-  # Password for the "postgres" user
-  postgres-password: <some secure password, base64 encoded>
-  username: litellm
-  password: <some secure password, base64 encoded>
-type: Opaque
+# Service Account Configuration
+serviceAccount:
+  gcpSAEmail: your-service-account@project.iam.gserviceaccount.com
+
+# Vertex AI Models
+proxyConfig:
+  model_list:
+    - model_name: vertex-gemini-pro
+      litellm_params:
+        model: vertex_ai/gemini-pro
+        vertex_project: your-gcp-project
+        vertex_location: us-central1
 ```
 
-## Accessing the Admin UI
-When browsing to the URL published per the settings in `ingress.*`, you will
-be prompted for **Admin Configuration**.  The **Proxy Endpoint** is the internal
-(from the `litellm` pod's perspective) URL published by the `<RELEASE>-litellm`
-Kubernetes Service.  If the deployment uses the default settings for this
-service, the **Proxy Endpoint** should be set to `http://<RELEASE>-litellm:4000`.
+### Cost Monitoring Configuration
 
-The **Proxy Key** is the value specified for `masterkey` or, if a `masterkey`
-was not provided to the helm command line, the `masterkey` is a randomly
-generated string stored in the `<RELEASE>-litellm-masterkey` Kubernetes Secret.
+```yaml
+costMonitoring:
+  enabled: true
+  budgets:
+    daily: 100.0      # $100 daily budget
+    weekly: 500.0     # $500 weekly budget
+    monthly: 2000.0   # $2000 monthly budget
+  
+  alerts:
+    warning: 75       # Alert at 75% of budget
+    critical: 90      # Alert at 90% of budget
+    emergency: 95     # Block requests at 95% of budget
+```
+
+### Guardrails Configuration
+
+```yaml
+guardrails:
+  enabled: true
+  contentFilter:
+    blockPII: true           # Block personally identifiable information
+    blockToxic: true         # Block toxic content
+    blockHate: true          # Block hate speech
+    blockViolence: true      # Block violent content
+    blockSexual: true        # Block sexual content
+  
+  inputValidation:
+    maxTokens: 8192          # Maximum input tokens
+    maxRequestSize: 1048576  # 1MB max request size
+  
+  outputValidation:
+    maxTokens: 8192          # Maximum output tokens
+    scanForSecrets: true     # Scan output for API keys, passwords
+```
+
+### Rate Limiting Configuration
+
+```yaml
+rateLimit:
+  enabled: true
+  backend: memory  # No Redis required
+  limit:
+    qpm: 60        # Queries per minute
+    qpd: 1000      # Queries per day
+    qph: 300       # Queries per hour
+    concurrent: 10  # Max concurrent requests
+  
+  # Per-user limits
+  userLimits:
+    enabled: true
+    defaultQpm: 30
+    defaultQpd: 500
+```
+
+## Using Your GCP Service Account Key
+
+If you have downloaded a Vertex AI JSON key for your service account, you can use it in two ways:
+
+### Option 1: Workload Identity (Recommended)
+Configure Workload Identity to bind your Kubernetes service account to your GCP service account:
+
+```yaml
+serviceAccount:
+  create: true
+  name: litellm-service
+  gcpSAEmail: vertexai@your-project.iam.gserviceaccount.com
+```
+
+### Option 2: Service Account Key File
+Add your service account key to the values file:
+
+```yaml
+gcp:
+  serviceAccountKey: |
+    {
+      "type": "service_account",
+      "project_id": "your-project",
+      "private_key_id": "...",
+      "private_key": "...",
+      "client_email": "...",
+      "client_id": "...",
+      "auth_uri": "...",
+      "token_uri": "...",
+      "auth_provider_x509_cert_url": "...",
+      "client_x509_cert_url": "..."
+    }
+```
+
+## API Usage
+
+### Making Requests
 
 ```bash
-kubectl -n litellm get secret <RELEASE>-litellm-masterkey -o jsonpath="{.data.masterkey}"
+# Basic request
+curl -X POST http://your-gateway:4000/v1/chat/completions \
+  -H "Authorization: Bearer sk-1234" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "vertex-gemini-pro",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
 ```
 
-## Admin UI Limitations
-At the time of writing, the Admin UI is unable to add models.  This is because
-it would need to update the `config.yaml` file which is a exposed ConfigMap, and
-therefore, read-only.  This is a limitation of this helm chart, not the Admin UI
-itself.
+### Monitoring Endpoints
+
+```bash
+# Health check
+curl http://your-gateway:4000/health/readyz
+
+# Cost status (if implemented)
+curl http://your-gateway:4000/cost/status
+
+# Metrics (Prometheus format)
+curl http://your-gateway:9090/metrics
+```
+
+## Monitoring and Observability
+
+### Prometheus Metrics
+
+The gateway exposes custom metrics:
+- `vertex_ai_requests_total`: Total number of requests
+- `vertex_ai_cost_total`: Total cost of requests
+- `vertex_ai_tokens_total`: Total tokens processed
+- `vertex_ai_latency_seconds`: Request latency histogram
+
+### Alerting
+
+Configure alerts for:
+- Budget threshold breaches
+- High error rates
+- Guardrail violations
+- Service health issues
+
+## Security Considerations
+
+### Content Safety
+- All requests are scanned for PII, toxic content, and secrets
+- Configurable content filtering rules
+- Output validation to prevent data leakage
+
+### Access Control
+- Master key authentication required
+- Per-user rate limiting
+- Request logging and audit trails
+
+### Data Privacy
+- Response content not logged by default
+- Configurable data retention policies
+- In-memory storage (no persistent data)
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Service Account Permissions**
+   ```bash
+   # Verify your service account has required permissions
+   gcloud projects add-iam-policy-binding YOUR_PROJECT \
+     --member="serviceAccount:vertexai@YOUR_PROJECT.iam.gserviceaccount.com" \
+     --role="roles/aiplatform.user"
+   ```
+
+2. **Budget Alerts Not Working**
+   - Check environment variables are properly set
+   - Verify cost monitoring is enabled
+   - Check logs for cost calculation errors
+
+3. **Guardrails Blocking Valid Requests**
+   - Review content filter settings
+   - Check token limits
+   - Examine request logs for violation details
+
+### Debugging
+
+Enable debug logging:
+```yaml
+analytics:
+  logging:
+    level: DEBUG
+    logRequests: true
+    logErrors: true
+```
+
+Check pod logs:
+```bash
+kubectl logs -n litellm-gateway deployment/litellm -f
+```
+
+## Advanced Configuration
+
+### Custom Cost Models
+```yaml
+costMonitoring:
+  modelCosts:
+    vertex-gemini-pro:
+      inputTokenCost: 0.000125   # per 1K tokens
+      outputTokenCost: 0.000375  # per 1K tokens
+    custom-model:
+      inputTokenCost: 0.0001
+      outputTokenCost: 0.0002
+```
+
+### Custom Guardrails
+```yaml
+guardrails:
+  inputValidation:
+    allowedContentTypes:
+      - "text/plain"
+      - "application/json"
+      - "multipart/form-data"
+  
+  monitoring:
+    logSuspiciousRequests: true
+    alertOnAnomalies: true
+```
+
+### Caching Configuration
+```yaml
+proxyConfig:
+  general_settings:
+    cache: true
+    cache_params:
+      type: memory
+      ttl: 3600  # 1 hour cache
+```
+
+## Legacy Configuration Support
+
+This chart maintains backward compatibility with the original LiteLLM Helm chart configuration. The following legacy parameters are still supported:
+
+- `replicaCount`: Number of LiteLLM Proxy pods
+- `masterkey`: Master API Key for LiteLLM
+- `environmentSecrets`: Array of Secret object names for environment variables
+- `image.*`: Image configuration settings
+- `service.*`: Kubernetes Service configuration
+- `ingress.*`: Ingress configuration
+
+For database configurations and other legacy settings, please refer to the original documentation or migrate to the new memory-based approach.
