@@ -71,8 +71,10 @@ gcp:
   # serviceAccountKey: |
   #   {
   #     "type": "service_account",
-  #     "project_id": "your-project",
-  #     ...
+  #     "project_id": "your-project-id",
+  #     "private_key_id": "[REDACTED]",
+  #     "private_key": "[REDACTED]",
+  #     "client_email": "service-account@your-project.iam.gserviceaccount.com"
   #   }
 
 # Vertex AI Models Configuration

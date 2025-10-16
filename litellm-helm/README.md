@@ -146,15 +146,15 @@ gcp:
   serviceAccountKey: |
     {
       "type": "service_account",
-      "project_id": "your-project",
-      "private_key_id": "...",
-      "private_key": "...",
-      "client_email": "...",
-      "client_id": "...",
-      "auth_uri": "...",
-      "token_uri": "...",
-      "auth_provider_x509_cert_url": "...",
-      "client_x509_cert_url": "..."
+      "project_id": "your-project-id",
+      "private_key_id": "[REDACTED]",
+      "private_key": "[REDACTED]",
+      "client_email": "service-account@your-project.iam.gserviceaccount.com",
+      "client_id": "[REDACTED]",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account%40your-project.iam.gserviceaccount.com"
     }
 ```
 
