@@ -149,7 +149,7 @@ gcp:
       "project_id": "your-project-id",
       "private_key_id": "[REDACTED]",
       "private_key": "[REDACTED]",
-      "client_email": "service-account@your-project.iam.gserviceaccount.com",
+      "client_email": "[SERVICE_ACCOUNT_EMAIL]",
       "client_id": "[REDACTED]",
       "auth_uri": "https://accounts.google.com/o/oauth2/auth",
       "token_uri": "https://oauth2.googleapis.com/token",

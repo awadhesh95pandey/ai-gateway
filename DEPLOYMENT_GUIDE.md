@@ -74,7 +74,7 @@ gcp:
   #     "project_id": "your-project-id",
   #     "private_key_id": "[REDACTED]",
   #     "private_key": "[REDACTED]",
-  #     "client_email": "service-account@your-project.iam.gserviceaccount.com"
+  #     "client_email": "[SERVICE_ACCOUNT_EMAIL]"
   #   }
 
 # Vertex AI Models Configuration
