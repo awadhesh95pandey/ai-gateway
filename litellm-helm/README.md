@@ -190,11 +190,33 @@ curl http://your-gateway:9090/metrics
 
 ### Prometheus Metrics
 
-The gateway exposes custom metrics:
+The gateway exposes custom metrics on port 9090:
 - `vertex_ai_requests_total`: Total number of requests
 - `vertex_ai_cost_total`: Total cost of requests
 - `vertex_ai_tokens_total`: Total tokens processed
 - `vertex_ai_latency_seconds`: Request latency histogram
+
+**Monitoring Setup Options:**
+
+1. **Basic Prometheus Scraping** (Default):
+   ```yaml
+   monitoring:
+     enabled: true
+     prometheus:
+       enabled: true
+       serviceMonitor:
+         enabled: false  # Default - uses service annotations
+   ```
+
+2. **Prometheus Operator with ServiceMonitor**:
+   ```yaml
+   monitoring:
+     enabled: true
+     prometheus:
+       enabled: true
+       serviceMonitor:
+         enabled: true  # Requires Prometheus Operator
+   ```
 
 ### Alerting
 

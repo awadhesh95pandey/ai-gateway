@@ -1,4 +1,4 @@
-{{- if and .Values.monitoring.enabled .Values.monitoring.prometheus.enabled }}
+{{- if and .Values.monitoring.enabled .Values.monitoring.prometheus.enabled .Values.monitoring.prometheus.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

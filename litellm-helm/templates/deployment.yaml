@@ -160,14 +160,14 @@ spec:
             {{- toYaml .Values.healthCheck.readinessProbe | nindent 12 }}
           {{- end }}
 
-          # Prometheus metrics port
-          {{- if and .Values.monitoring.enabled .Values.monitoring.prometheus.enabled }}
+          # Container ports
           ports:
             - containerPort: 4000
               name: http
+            {{- if and .Values.monitoring.enabled .Values.monitoring.prometheus.enabled }}
             - containerPort: {{ .Values.monitoring.prometheus.port }}
               name: metrics
-          {{- end }}
+            {{- end }}
 
       volumes:
         - name: config

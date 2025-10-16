@@ -223,18 +223,32 @@ ingress:
 
 ### Common Issues
 
-1. **Pod Not Starting**
+1. **ServiceMonitor CRD Error**
+   ```
+   Error: no matches for kind "ServiceMonitor" in version "monitoring.coreos.com/v1"
+   ```
+   **Solution**: ServiceMonitor requires Prometheus Operator. Either:
+   - Install Prometheus Operator, or
+   - Disable ServiceMonitor in values.yaml:
+   ```yaml
+   monitoring:
+     prometheus:
+       serviceMonitor:
+         enabled: false
+   ```
+
+2. **Pod Not Starting**
    ```bash
    kubectl describe pod -n litellm-gateway -l app=litellm
    kubectl logs -n litellm-gateway -l app=litellm
    ```
 
-2. **Authentication Errors**
+3. **Authentication Errors**
    - Verify your service account has correct permissions
    - Check if service account key is properly configured
    - Ensure Workload Identity is set up correctly (if using)
 
-3. **Vertex AI API Errors**
+4. **Vertex AI API Errors**
    ```bash
    # Check if Vertex AI API is enabled
    gcloud services list --enabled --filter="name:aiplatform.googleapis.com"
@@ -243,7 +257,7 @@ ingress:
    gcloud services enable aiplatform.googleapis.com
    ```
 
-4. **Budget/Cost Monitoring Not Working**
+5. **Budget/Cost Monitoring Not Working**
    - Check environment variables in the pod
    - Verify cost monitoring is enabled in values
    - Check logs for cost calculation errors

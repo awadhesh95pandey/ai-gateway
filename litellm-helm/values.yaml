@@ -236,6 +236,9 @@ monitoring:
     enabled: true
     port: 9090
     path: /metrics
+    # ServiceMonitor requires Prometheus Operator to be installed
+    serviceMonitor:
+      enabled: false  # Set to true if you have Prometheus Operator installed
   
   # Custom metrics
   customMetrics:

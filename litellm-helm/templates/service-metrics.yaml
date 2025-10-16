@@ -1,0 +1,23 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.prometheus.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm-metrics
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: litellm
+    component: metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
+    prometheus.io/path: "{{ .Values.monitoring.prometheus.path }}"
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.monitoring.prometheus.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app: litellm
+{{- end }}
