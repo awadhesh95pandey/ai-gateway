@@ -1,0 +1,58 @@
+# Namespace for LiteLLM
+namespace: litellm-gateway
+
+# Use existing GCP Service Account (Workload Identity)
+serviceAccount:
+  create: true
+  name: litellm-service
+  gcpSAEmail: vertexai@pdlgcpcloud.iam.gserviceaccount.com
+
+# Skip Config Connector — GCP service account already exists
+gcp:
+  serviceAccount:
+    create: false
+
+# LiteLLM image
+image:
+  repository: ghcr.io/berriai/litellm
+  tag: main-stable
+  pullPolicy: IfNotPresent
+
+# Master key for LiteLLM
+masterKey: sk-1234
+
+# Service configuration
+service:
+  type: LoadBalancer
+  port: 4000
+  targetPort: 4000
+
+# Enable built-in rate limiting
+rateLimit:
+  enabled: true
+  backend: memory
+  limit:
+    qpm: 60
+    qpd: 1000
+
+# LiteLLM proxy setup for Vertex AI
+proxyConfig:
+  model_list:
+    - model_name: vertex-gemini-pro
+      litellm_params:
+        model: vertex_ai/gemini-pro
+        vertex_project: pdlgcpcloud
+        vertex_location: us-central1
+    - model_name: vertex-gemini-flash
+      litellm_params:
+        model: vertex_ai/gemini-1.5-flash
+        vertex_project: pdlgcpcloud
+        vertex_location: us-central1
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi

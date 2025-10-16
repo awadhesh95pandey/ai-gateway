@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: latest
+name: litellm-gateway
+description: AI Gateway for Vertex AI Agents routing
+type: application
+version: 0.1.0

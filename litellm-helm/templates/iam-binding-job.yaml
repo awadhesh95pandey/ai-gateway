@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: litellm-iam-binding
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: litellm
+spec:
+  template:
+    spec:
+      serviceAccountName: default  # Uses node identity
+      restartPolicy: OnFailure
+      containers:
+        - name: gcloud
+          image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Binding Kubernetes SA to GCP SA..."
+              gcloud iam service-accounts add-iam-policy-binding \
+                {{ .Values.serviceAccount.gcpSAEmail }} \
+                --member="serviceAccount:{{ .Values.gcp.project }}.svc.id.goog[{{ .Values.namespace }}/{{ .Values.serviceAccount.name }}]" \
+                --role="roles/iam.workloadIdentityUser"
+              echo "✅ IAM binding done"

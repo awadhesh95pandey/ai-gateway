@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: litellm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 4000
+          env:
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-masterkey
+                  key: MASTER_KEY
+            - name: LITELLM_CONFIG
+              value: "/app/config/litellm.yaml"
+
+            # --- Rate Limiting ---
+            - name: RATE_LIMIT_ENABLED
+              value: "{{ .Values.rateLimit.enabled | default false }}"
+            - name: RATE_LIMIT_QPM
+              value: "{{ .Values.rateLimit.limit.qpm | default 100 }}"
+            - name: RATE_LIMIT_QPD
+              value: "{{ .Values.rateLimit.limit.qpd | default 1000 }}"
+
+            # --- Redis Configuration (safe-checked) ---
+            {{- if and .Values.redis (hasKey .Values.redis "enabled") }}
+              {{- if .Values.redis.enabled }}
+            - name: RATE_LIMIT_BACKEND
+              value: "redis"
+            - name: REDIS_URL
+              value: "redis://{{ .Values.redis.host }}:{{ .Values.redis.port }}"
+              {{- else }}
+            - name: RATE_LIMIT_BACKEND
+              value: "memory"
+              {{- end }}
+            {{- else }}
+            - name: RATE_LIMIT_BACKEND
+              value: "memory"
+            {{- end }}
+
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
