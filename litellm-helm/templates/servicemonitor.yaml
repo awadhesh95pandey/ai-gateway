@@ -1,0 +1,25 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: litellm-metrics
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: litellm
+    component: metrics
+spec:
+  selector:
+    matchLabels:
+      app: litellm
+  endpoints:
+  - port: metrics
+    path: {{ .Values.monitoring.prometheus.path }}
+    interval: 30s
+    scrapeTimeout: 10s
+    honorLabels: true
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'vertex_ai_.*'
+      targetLabel: service
+      replacement: 'vertex-ai-gateway'
+{{- end }}

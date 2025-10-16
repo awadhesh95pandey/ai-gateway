@@ -27,15 +27,124 @@ service:
   port: 4000
   targetPort: 4000
 
-# Enable built-in rate limiting
+# Enhanced Rate Limiting with Guardrails
 rateLimit:
   enabled: true
-  backend: memory
+  backend: memory  # Using memory as requested (no Redis)
   limit:
-    qpm: 60
-    qpd: 1000
+    qpm: 60        # Queries per minute
+    qpd: 1000      # Queries per day
+    qph: 300       # Queries per hour
+    concurrent: 10  # Max concurrent requests
+  
+  # Per-user rate limits
+  userLimits:
+    enabled: true
+    defaultQpm: 30
+    defaultQpd: 500
+    
+  # Model-specific rate limits
+  modelLimits:
+    enabled: true
+    limits:
+      vertex-gemini-pro:
+        qpm: 40
+        qpd: 600
+      vertex-gemini-flash:
+        qpm: 60
+        qpd: 1000
 
-# LiteLLM proxy setup for Vertex AI
+# Cost Monitoring and Budget Controls
+costMonitoring:
+  enabled: true
+  
+  # Daily budget limits (in USD)
+  budgets:
+    daily: 100.0
+    weekly: 500.0
+    monthly: 2000.0
+    
+  # Cost tracking per model
+  modelCosts:
+    vertex-gemini-pro:
+      inputTokenCost: 0.000125   # per 1K tokens
+      outputTokenCost: 0.000375  # per 1K tokens
+    vertex-gemini-flash:
+      inputTokenCost: 0.000075   # per 1K tokens
+      outputTokenCost: 0.0003    # per 1K tokens
+  
+  # Alert thresholds (percentage of budget)
+  alerts:
+    warning: 75    # 75% of budget
+    critical: 90   # 90% of budget
+    emergency: 95  # 95% of budget
+  
+  # Cost tracking storage
+  storage:
+    type: memory   # Using memory storage (no Redis)
+    retentionDays: 30
+
+# Content Guardrails and Safety
+guardrails:
+  enabled: true
+  
+  # Content filtering
+  contentFilter:
+    enabled: true
+    blockPII: true           # Block personally identifiable information
+    blockToxic: true         # Block toxic content
+    blockHate: true          # Block hate speech
+    blockViolence: true      # Block violent content
+    blockSexual: true        # Block sexual content
+    
+  # Input validation
+  inputValidation:
+    enabled: true
+    maxTokens: 8192          # Maximum input tokens
+    maxRequestSize: 1048576  # 1MB max request size
+    allowedContentTypes:
+      - "text/plain"
+      - "application/json"
+    
+  # Output validation
+  outputValidation:
+    enabled: true
+    maxTokens: 8192          # Maximum output tokens
+    scanForSecrets: true     # Scan output for API keys, passwords, etc.
+    
+  # Request monitoring
+  monitoring:
+    enabled: true
+    logSuspiciousRequests: true
+    alertOnAnomalies: true
+
+# Usage Analytics and Logging
+analytics:
+  enabled: true
+  
+  # Metrics collection
+  metrics:
+    enabled: true
+    collectUserMetrics: true
+    collectModelMetrics: true
+    collectCostMetrics: true
+    collectLatencyMetrics: true
+    
+  # Logging configuration
+  logging:
+    level: INFO
+    logRequests: true
+    logResponses: false      # Don't log response content for privacy
+    logErrors: true
+    logCosts: true
+    
+  # Export configuration
+  export:
+    enabled: true
+    format: json
+    destination: stdout      # Can be changed to file or external service
+
+# LiteLLM proxy setup for Vertex AI with enhanced configuration
 proxyConfig:
   model_list:
     - model_name: vertex-gemini-pro
@@ -43,16 +152,102 @@ proxyConfig:
         model: vertex_ai/gemini-pro
         vertex_project: pdlgcpcloud
         vertex_location: us-central1
+        max_tokens: 8192
+        temperature: 0.7
+        top_p: 0.9
+        top_k: 40
+      model_info:
+        mode: chat
+        supports_function_calling: true
+        supports_vision: false
+        
     - model_name: vertex-gemini-flash
       litellm_params:
         model: vertex_ai/gemini-1.5-flash
         vertex_project: pdlgcpcloud
         vertex_location: us-central1
+        max_tokens: 8192
+        temperature: 0.7
+        top_p: 0.9
+        top_k: 40
+      model_info:
+        mode: chat
+        supports_function_calling: true
+        supports_vision: true
 
+  # General settings
+  general_settings:
+    master_key: sk-1234
+    database_url: null  # Using memory storage
+    
+    # Cost tracking settings
+    track_cost_per_tenant: true
+    
+    # Guardrails settings
+    guardrails:
+      - guardrail_name: "content_filter"
+        litellm_params:
+          guardrail: presidio
+          mode: during_call
+      - guardrail_name: "budget_guard"
+        litellm_params:
+          guardrail: budget_guard
+          mode: pre_call
+          
+    # Callbacks for monitoring
+    success_callback: ["langfuse", "prometheus"]
+    failure_callback: ["langfuse"]
+    
+    # Caching (using memory)
+    cache: true
+    cache_params:
+      type: memory
+      ttl: 3600  # 1 hour cache
+
+# Resource configuration
 resources:
   requests:
-    cpu: 250m
-    memory: 512Mi
+    cpu: 500m      # Increased for guardrails processing
+    memory: 1Gi    # Increased for cost tracking and analytics
   limits:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 1000m     # Increased limits
+    memory: 2Gi
+
+# Health checks
+healthCheck:
+  enabled: true
+  livenessProbe:
+    httpGet:
+      path: /health/livenessz
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /health/readyz
+      port: 4000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Monitoring and observability
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+    path: /metrics
+  
+  # Custom metrics
+  customMetrics:
+    - name: vertex_ai_requests_total
+      type: counter
+      description: "Total number of requests to Vertex AI"
+    - name: vertex_ai_cost_total
+      type: counter
+      description: "Total cost of Vertex AI requests"
+    - name: vertex_ai_tokens_total
+      type: counter
+      description: "Total tokens processed"
+    - name: vertex_ai_latency_seconds
+      type: histogram
+      description: "Request latency in seconds"

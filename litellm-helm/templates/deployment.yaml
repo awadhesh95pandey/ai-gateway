@@ -29,35 +29,153 @@ spec:
             - name: LITELLM_CONFIG
               value: "/app/config/litellm.yaml"
 
-            # --- Rate Limiting ---
+            # --- Enhanced Rate Limiting ---
             - name: RATE_LIMIT_ENABLED
               value: "{{ .Values.rateLimit.enabled | default false }}"
             - name: RATE_LIMIT_QPM
               value: "{{ .Values.rateLimit.limit.qpm | default 100 }}"
             - name: RATE_LIMIT_QPD
               value: "{{ .Values.rateLimit.limit.qpd | default 1000 }}"
+            - name: RATE_LIMIT_QPH
+              value: "{{ .Values.rateLimit.limit.qph | default 300 }}"
+            - name: MAX_CONCURRENT_REQUESTS
+              value: "{{ .Values.rateLimit.limit.concurrent | default 10 }}"
 
-            # --- Redis Configuration (safe-checked) ---
-            {{- if and .Values.redis (hasKey .Values.redis "enabled") }}
-              {{- if .Values.redis.enabled }}
-            - name: RATE_LIMIT_BACKEND
-              value: "redis"
-            - name: REDIS_URL
-              value: "redis://{{ .Values.redis.host }}:{{ .Values.redis.port }}"
-              {{- else }}
+            # --- Rate Limiting Backend (Memory only, no Redis) ---
             - name: RATE_LIMIT_BACKEND
               value: "memory"
-              {{- end }}
-            {{- else }}
-            - name: RATE_LIMIT_BACKEND
-              value: "memory"
+
+            # --- Cost Monitoring ---
+            {{- if .Values.costMonitoring.enabled }}
+            - name: COST_MONITORING_ENABLED
+              value: "true"
+            - name: DAILY_BUDGET
+              value: "{{ .Values.costMonitoring.budgets.daily }}"
+            - name: WEEKLY_BUDGET
+              value: "{{ .Values.costMonitoring.budgets.weekly }}"
+            - name: MONTHLY_BUDGET
+              value: "{{ .Values.costMonitoring.budgets.monthly }}"
+            - name: COST_ALERT_WARNING
+              value: "{{ .Values.costMonitoring.alerts.warning }}"
+            - name: COST_ALERT_CRITICAL
+              value: "{{ .Values.costMonitoring.alerts.critical }}"
+            - name: COST_ALERT_EMERGENCY
+              value: "{{ .Values.costMonitoring.alerts.emergency }}"
+            - name: COST_STORAGE_TYPE
+              value: "{{ .Values.costMonitoring.storage.type }}"
+            - name: COST_RETENTION_DAYS
+              value: "{{ .Values.costMonitoring.storage.retentionDays }}"
+            {{- end }}
+
+            # --- Guardrails Configuration ---
+            {{- if .Values.guardrails.enabled }}
+            - name: GUARDRAILS_ENABLED
+              value: "true"
+            - name: CONTENT_FILTER_ENABLED
+              value: "{{ .Values.guardrails.contentFilter.enabled }}"
+            - name: BLOCK_PII
+              value: "{{ .Values.guardrails.contentFilter.blockPII }}"
+            - name: BLOCK_TOXIC
+              value: "{{ .Values.guardrails.contentFilter.blockToxic }}"
+            - name: BLOCK_HATE
+              value: "{{ .Values.guardrails.contentFilter.blockHate }}"
+            - name: BLOCK_VIOLENCE
+              value: "{{ .Values.guardrails.contentFilter.blockViolence }}"
+            - name: BLOCK_SEXUAL
+              value: "{{ .Values.guardrails.contentFilter.blockSexual }}"
+            - name: MAX_INPUT_TOKENS
+              value: "{{ .Values.guardrails.inputValidation.maxTokens }}"
+            - name: MAX_REQUEST_SIZE
+              value: "{{ .Values.guardrails.inputValidation.maxRequestSize }}"
+            - name: MAX_OUTPUT_TOKENS
+              value: "{{ .Values.guardrails.outputValidation.maxTokens }}"
+            - name: SCAN_FOR_SECRETS
+              value: "{{ .Values.guardrails.outputValidation.scanForSecrets }}"
+            - name: LOG_SUSPICIOUS_REQUESTS
+              value: "{{ .Values.guardrails.monitoring.logSuspiciousRequests }}"
+            - name: ALERT_ON_ANOMALIES
+              value: "{{ .Values.guardrails.monitoring.alertOnAnomalies }}"
+            {{- end }}
+
+            # --- Analytics Configuration ---
+            {{- if .Values.analytics.enabled }}
+            - name: ANALYTICS_ENABLED
+              value: "true"
+            - name: COLLECT_USER_METRICS
+              value: "{{ .Values.analytics.metrics.collectUserMetrics }}"
+            - name: COLLECT_MODEL_METRICS
+              value: "{{ .Values.analytics.metrics.collectModelMetrics }}"
+            - name: COLLECT_COST_METRICS
+              value: "{{ .Values.analytics.metrics.collectCostMetrics }}"
+            - name: COLLECT_LATENCY_METRICS
+              value: "{{ .Values.analytics.metrics.collectLatencyMetrics }}"
+            - name: LOG_LEVEL
+              value: "{{ .Values.analytics.logging.level }}"
+            - name: LOG_REQUESTS
+              value: "{{ .Values.analytics.logging.logRequests }}"
+            - name: LOG_RESPONSES
+              value: "{{ .Values.analytics.logging.logResponses }}"
+            - name: LOG_ERRORS
+              value: "{{ .Values.analytics.logging.logErrors }}"
+            - name: LOG_COSTS
+              value: "{{ .Values.analytics.logging.logCosts }}"
+            {{- end }}
+
+            # --- Monitoring Configuration ---
+            {{- if .Values.monitoring.enabled }}
+            - name: PROMETHEUS_ENABLED
+              value: "{{ .Values.monitoring.prometheus.enabled }}"
+            - name: PROMETHEUS_PORT
+              value: "{{ .Values.monitoring.prometheus.port }}"
+            - name: PROMETHEUS_PATH
+              value: "{{ .Values.monitoring.prometheus.path }}"
+            {{- end }}
+
+            # --- Health Check Configuration ---
+            {{- if .Values.healthCheck.enabled }}
+            - name: HEALTH_CHECK_ENABLED
+              value: "true"
+            {{- end }}
+
+            # --- GCP Service Account Key (if provided) ---
+            {{- if .Values.gcp.serviceAccountKey }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: "/app/secrets/gcp-key.json"
             {{- end }}
 
           volumeMounts:
             - name: config
               mountPath: /app/config
+            {{- if .Values.gcp.serviceAccountKey }}
+            - name: gcp-key
+              mountPath: /app/secrets
+              readOnly: true
+            {{- end }}
+
+          # Health checks
+          {{- if .Values.healthCheck.enabled }}
+          livenessProbe:
+            {{- toYaml .Values.healthCheck.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.healthCheck.readinessProbe | nindent 12 }}
+          {{- end }}
+
+          # Prometheus metrics port
+          {{- if and .Values.monitoring.enabled .Values.monitoring.prometheus.enabled }}
+          ports:
+            - containerPort: 4000
+              name: http
+            - containerPort: {{ .Values.monitoring.prometheus.port }}
+              name: metrics
+          {{- end }}
 
       volumes:
         - name: config
           configMap:
             name: litellm-config
+        {{- if .Values.gcp.serviceAccountKey }}
+        - name: gcp-key
+          secret:
+            secretName: gcp-service-account-key
+            defaultMode: 0400
+        {{- end }}

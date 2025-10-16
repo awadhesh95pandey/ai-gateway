@@ -7,3 +7,64 @@ data:
   litellm.yaml: |
     model_list:
     {{- toYaml .Values.proxyConfig.model_list | nindent 4 }}
+    
+    {{- if .Values.proxyConfig.general_settings }}
+    general_settings:
+    {{- toYaml .Values.proxyConfig.general_settings | nindent 4 }}
+    {{- end }}
+    
+    # Environment-specific settings
+    environment_variables:
+      {{- if .Values.costMonitoring.enabled }}
+      COST_MONITORING_ENABLED: "{{ .Values.costMonitoring.enabled }}"
+      {{- range $model, $costs := .Values.costMonitoring.modelCosts }}
+      {{ upper $model | replace "-" "_" }}_INPUT_COST: "{{ $costs.inputTokenCost }}"
+      {{ upper $model | replace "-" "_" }}_OUTPUT_COST: "{{ $costs.outputTokenCost }}"
+      {{- end }}
+      {{- end }}
+      
+      {{- if .Values.guardrails.enabled }}
+      GUARDRAILS_ENABLED: "{{ .Values.guardrails.enabled }}"
+      {{- end }}
+      
+      {{- if .Values.analytics.enabled }}
+      ANALYTICS_ENABLED: "{{ .Values.analytics.enabled }}"
+      {{- end }}
+    
+    # Litellm settings for enhanced functionality
+    litellm_settings:
+      # Drop params that the model doesn't support
+      drop_params: true
+      
+      # Set custom headers
+      headers:
+        X-LiteLLM-Version: "1.0.0"
+        X-Cost-Tracking: "enabled"
+        X-Guardrails: "enabled"
+      
+      # Success and failure callbacks
+      {{- if .Values.proxyConfig.general_settings.success_callback }}
+      success_callback: {{ .Values.proxyConfig.general_settings.success_callback | toJson }}
+      {{- end }}
+      
+      {{- if .Values.proxyConfig.general_settings.failure_callback }}
+      failure_callback: {{ .Values.proxyConfig.general_settings.failure_callback | toJson }}
+      {{- end }}
+      
+      # Set max budget per model
+      {{- if .Values.costMonitoring.enabled }}
+      max_budget: {{ .Values.costMonitoring.budgets.daily }}
+      budget_duration: "1d"
+      {{- end }}
+      
+      # Enable detailed logging
+      set_verbose: {{ .Values.analytics.logging.level | lower | eq "debug" }}
+      
+      # Cache settings
+      {{- if .Values.proxyConfig.general_settings.cache }}
+      cache: {{ .Values.proxyConfig.general_settings.cache }}
+      {{- if .Values.proxyConfig.general_settings.cache_params }}
+      cache_params:
+      {{- toYaml .Values.proxyConfig.general_settings.cache_params | nindent 6 }}
+      {{- end }}
+      {{- end }}
